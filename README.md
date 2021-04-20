@@ -1,0 +1,7 @@
+We used the Unity Multipurpose Avatar asset for the Unity 3D game engine to generate and render faces. First, we generated 50 random 3d models of human faces. Then we placed each of the models to face a camera 1 meter away, and added three different light sources to the environment: A backlight of 0.4 Candelas, a filler light of 0.33 Candelas, and a point light source 1 meter away from the face in the $x=y$ direction, randing from 0 to 3 Candelas. Using this environment, we generated three sub-datasets:
+
+- synthesized folder: For each face, we rotated it around the z axis from -45 degrees to +45 degrees, and captured an image for every 9 degrees of rotation (0 degrees means that the model is facing the camera). We generated a total of 550 human face images with different rotations.
+
+- synthesized2 folder: For each face, we changed the point light intensity from 0 to 3 Candelas, capturing an image after every 0.3 Candela step. Consequently, we generated 550 images with different levels of lighting.
+
+- synthesized3 folder: For each face, we randomly modified 27 different features of the face, changing its expression. Given there are no quantitative measures of facial expression, we bounded the modification levels so the faces be realistic and also span throught the whole range of reasonable facial expressions. Applying different levels of expression intensity, we generated 11 images from each face, resulting in 550 images.
