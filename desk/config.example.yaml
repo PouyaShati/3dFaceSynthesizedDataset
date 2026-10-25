@@ -1,0 +1,55 @@
+# Copy to desk/config.yaml and replace the sample book with your own figures.
+# Symbols below are format examples, not recommendations.
+
+timezone: America/Toronto
+
+short_term:
+  account_type: non_registered   # non_registered or tfsa
+  currency: CAD
+  equity: 20000
+  deployable_cash: 10000
+  max_positions: 5               # 4, 5, or 6
+  risk_fraction: 0.005           # 0.5 percent of equity if the stop is hit
+
+commission_per_trade: 0.0
+usd_conversion_fee: 2.0          # flat fee charged when a trade must convert currency
+fx_spread_bps: 0                 # set 150 for a 1.5 percent spread, if that is what you pay
+cost_skip_fraction_of_target: 0.30
+fx_rates:
+  CAD: 1.0
+  USD: 1.35                      # quote currency to account currency, for journal P&L
+
+min_stop_pct: 0.0075
+max_stop_pct: 0.015
+stop_buffer_pct: 0.001
+exit_plan: scale                 # scale (half at 2 percent, trail) or fixed3
+
+sma_fast: 20
+sma_slow: 50
+sma_rise_lookback: 10
+pullback_lookback: 8
+touch_tolerance_pct: 0.005
+touch_max_pierce_pct: 0.02
+earnings_blackout_days: 5
+journal_min_trades: 30
+active_setup: pullback
+enable_breakout: false           # stays off until the journal gate has passed and you turn this on
+
+breakout_range_days: 7
+breakout_max_width_pct: 0.03
+breakout_volume_multiple: 1.5
+
+min_harvest_loss: 50
+
+paths:
+  db: data/desk.sqlite
+  out: out
+  lots: lots.example.csv
+
+watchlist:
+  - symbol: EXAMPLE.TO
+    currency: CAD
+    name: Format example only
+  - symbol: EXAMPLE
+    currency: USD
+    name: Format example only
