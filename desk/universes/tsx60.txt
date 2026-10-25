@@ -1,0 +1,63 @@
+# S&P/TSX 60 constituents as of 2026-01-31, Yahoo Finance symbols.
+# Large-cap Toronto names. This is the CAD search universe because a 2-3 percent
+# target cannot pay a currency conversion on every trade. Edit the file to change it.
+AEM.TO Agnico Eagle Mines
+ATD.TO Alimentation Couche-Tard
+BMO.TO Bank of Montreal
+BNS.TO Bank of Nova Scotia
+ABX.TO Barrick Mining
+BCE.TO BCE
+BAM.TO Brookfield Asset Management
+BN.TO Brookfield Corporation
+BIP-UN.TO Brookfield Infrastructure Partners
+CAE.TO CAE
+CCO.TO Cameco
+CM.TO Canadian Imperial Bank of Commerce
+CNR.TO Canadian National Railway
+CNQ.TO Canadian Natural Resources
+CP.TO Canadian Pacific Kansas City
+CTC-A.TO Canadian Tire
+CCL-B.TO CCL Industries
+CLS.TO Celestica
+CVE.TO Cenovus Energy
+GIB-A.TO CGI
+CSU.TO Constellation Software
+DOL.TO Dollarama
+EMA.TO Emera
+ENB.TO Enbridge
+FFH.TO Fairfax Financial
+FM.TO First Quantum Minerals
+FSV.TO FirstService
+FTS.TO Fortis
+FNV.TO Franco-Nevada
+WN.TO George Weston
+GIL.TO Gildan Activewear
+H.TO Hydro One
+IMO.TO Imperial Oil
+IFC.TO Intact Financial
+K.TO Kinross Gold
+L.TO Loblaw
+MG.TO Magna International
+MFC.TO Manulife Financial
+MRU.TO Metro
+NA.TO National Bank of Canada
+NTR.TO Nutrien
+OTEX.TO Open Text
+PPL.TO Pembina Pipeline
+POW.TO Power Corporation of Canada
+QSR.TO Restaurant Brands International
+RCI-B.TO Rogers Communications
+RY.TO Royal Bank of Canada
+SAP.TO Saputo
+SHOP.TO Shopify
+SLF.TO Sun Life Financial
+SU.TO Suncor Energy
+TRP.TO TC Energy
+TECK-B.TO Teck Resources
+T.TO Telus
+TRI.TO Thomson Reuters
+TD.TO Toronto-Dominion Bank
+TOU.TO Tourmaline Oil
+WCN.TO Waste Connections
+WPM.TO Wheaton Precious Metals
+WSP.TO WSP Global

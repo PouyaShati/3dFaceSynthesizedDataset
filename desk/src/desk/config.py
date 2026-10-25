@@ -47,10 +47,31 @@ class DeskConfig:
     breakout_volume_multiple: float
     min_harvest_loss: float
     watchlist: tuple[SymbolSpec, ...]
+    search_enabled: bool
+    cad_universe: Path
+    usd_universe: Path
+    usd_cash: float
+    min_price: float
+    min_avg_dollar_volume: float
+    max_participation: float
+    atr_window: int
+    min_atr_pct: float
+    max_atr_pct: float
+    dollar_volume_window: int
     db_path: Path
     out_dir: Path
     lots_path: Path
     source_path: Path
+
+
+def _resolve_universe(root: Path, value: str) -> Path:
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = (root / value).resolve()
+    if candidate.is_file():
+        return candidate
+    packaged = Path(__file__).resolve().parents[2] / value
+    return packaged if packaged.is_file() else candidate
 
 
 def load_config(path: str | Path) -> DeskConfig:
@@ -112,6 +133,20 @@ def load_config(path: str | Path) -> DeskConfig:
     out_dir = (root / str(paths.get("out", "out"))).resolve()
     lots_path = (root / str(paths.get("lots", "lots.example.csv"))).resolve()
 
+    search = raw.get("search") or {}
+    if not isinstance(search, dict):
+        raise ConfigError("search must be a mapping")
+    max_participation = float(search.get("max_participation", 0.01))
+    if not 0 < max_participation <= 1:
+        raise ConfigError("search.max_participation must be between 0 and 1")
+    min_atr_pct = float(search.get("min_atr_pct", 0.008))
+    max_atr_pct = float(search.get("max_atr_pct", 0.04))
+    if min_atr_pct >= max_atr_pct:
+        raise ConfigError("search.min_atr_pct must be below search.max_atr_pct")
+    min_price = float(search.get("min_price", 10))
+    if min_price < 0:
+        raise ConfigError("search.min_price cannot be negative")
+
     return DeskConfig(
         timezone=str(raw.get("timezone", "America/Toronto")),
         account_type=account_type,
@@ -144,6 +179,17 @@ def load_config(path: str | Path) -> DeskConfig:
         breakout_volume_multiple=float(raw.get("breakout_volume_multiple", 1.5)),
         min_harvest_loss=float(raw.get("min_harvest_loss", 50)),
         watchlist=tuple(watchlist),
+        search_enabled=bool(search.get("enabled", False)),
+        cad_universe=_resolve_universe(root, str(search.get("cad_universe", "universes/tsx60.txt"))),
+        usd_universe=_resolve_universe(root, str(search.get("usd_universe", "universes/us_large.txt"))),
+        usd_cash=float(search.get("usd_cash", 0)),
+        min_price=min_price,
+        min_avg_dollar_volume=float(search.get("min_avg_dollar_volume", 5_000_000)),
+        max_participation=max_participation,
+        atr_window=int(search.get("atr_window", 14)),
+        min_atr_pct=min_atr_pct,
+        max_atr_pct=max_atr_pct,
+        dollar_volume_window=int(search.get("dollar_volume_window", 20)),
         db_path=db_path,
         out_dir=out_dir,
         lots_path=lots_path,

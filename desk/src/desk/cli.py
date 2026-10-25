@@ -12,7 +12,8 @@ from desk.calendar import MarketClosed, require_trading_day
 from desk.config import ConfigError, DeskConfig, load_config
 from desk.costs import needs_conversion, round_trip_cost
 from desk.journal import Journal
-from desk.plan import default_market, run_daily, run_harvest, run_weekly
+from desk.plan import default_market, run_daily, run_harvest, run_universe, run_weekly
+from desk.universe import UniverseError, listed_symbols
 from desk.risk import position_shares
 
 
@@ -32,9 +33,9 @@ def _journal_add(config: DeskConfig, journal: Journal, args: argparse.Namespace)
     if not gate.allow_new_entries:
         print("New entries are frozen. The journal gate did not pass.", file=sys.stderr)
         return 1
-    specs = {spec.symbol: spec for spec in config.watchlist}
+    specs = listed_symbols(config)
     if args.symbol not in specs:
-        print(f"{args.symbol} is not on the watchlist.", file=sys.stderr)
+        print(f"{args.symbol} is not in the search universe or the watchlist.", file=sys.stderr)
         return 1
     spec = specs[args.symbol]
     entry_day = date.fromisoformat(args.date)
@@ -148,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     weekly.add_argument("--date", help="Any date in the week YYYY-MM-DD")
     harvest = run_sub.add_parser("harvest", help="Write the non-registered tax-lot checklist")
     harvest.add_argument("--date", help="Review date YYYY-MM-DD")
+    universe = run_sub.add_parser("universe", help="Search the liquid universe without placing orders")
+    universe.add_argument("--date", help="Session date YYYY-MM-DD")
 
     show = sub.add_parser("show", help="Reprint a plan without scanning")
     show_sub = show.add_subparsers(dest="what", required=True)
@@ -194,6 +197,15 @@ def main(argv: list[str] | None = None) -> int:
             written = run_weekly(config, journal_db, _session_date(args.date, config.timezone))
             _print_written("weekly", written.path, written.created)
             return 0
+        if args.command == "run" and args.job == "universe":
+            written = run_universe(
+                config,
+                default_market(config),
+                journal_db,
+                _session_date(args.date, config.timezone),
+            )
+            _print_written("universe", written.path, written.created)
+            return 0
         if args.command == "run" and args.job == "harvest":
             written = run_harvest(
                 config,
@@ -220,6 +232,9 @@ def main(argv: list[str] | None = None) -> int:
     except MarketClosed as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    except UniverseError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     print("Unknown command.", file=sys.stderr)
     return 1
 

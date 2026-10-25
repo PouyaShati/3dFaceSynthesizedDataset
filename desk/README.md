@@ -6,16 +6,22 @@ The short-term book is the non-registered account. Long-term ETFs stay outside t
 
 ## Stock-picking process
 
-The watchlist in `config.yaml` is the only universe. The desk does not add symbols and does not ship a recommended list. Each weekday after the close, names move through these gates in order. A name that fails a gate is written under Skipped and is not an order.
+The search is built for this strategy, not for a generic momentum screen. A 1 percent stop and a 2 to 3 percent target need a name whose normal day is about that size, and that is liquid enough to enter and leave without giving the target back. Wider swing screens that want a 3 to 8 percent daily range need wider stops, so they are not used. A 200-day average is not added. Direction stays the rule already set: above a rising 50-day average.
 
-1. Already open. A symbol below its entry is `add_to_loser`. Any other open symbol is `already_open`. Nothing is added.
-2. Daily trend. The close is above the 50-day average and that average is higher than it was ten sessions ago.
-3. Setup A only, until the journal gate passes and you set `enable_breakout: true`. Setup A is a pullback toward the 20-day average that has stopped falling: a recent bar touched that average from above, today's close is up, and today's low is not a new pullback low.
-4. Earnings. A known earnings date inside five trading days is skipped. An unknown earnings date stays off the action list.
-5. Stop. The stop is the pullback low minus 0.1 percent. The distance from the close to that stop must be between 0.75 percent and 1.5 percent, so a 2R to 3R target lands near a 2 to 3 percent price move.
-6. Costs. Round-trip commission plus a currency conversion, when the symbol currency does not match cash already held, must leave most of a 2 percent gain. The default conversion is a flat 2 currency units each way. Matching cash means that fee is not charged on the trade.
-7. Rank. Names that pass are ordered by matching currency, then by a stop closest to 1 percent, then by the steeper rising 50-day average.
-8. Size and cap. `shares = (0.005 * equity) / (entry - stop)`, rounded down. One share that would risk more than 0.5 percent is skipped. If deployable cash is short, the share count is reduced and the risk is smaller. At most 4 to 6 positions are open. The rest of the account stays in cash or the long-term ETFs.
+`desk run daily` searches, then tests the setup. `desk run universe` writes the search only.
+
+1. Universe. CAD names come from `universes/tsx60.txt`, the large-cap Toronto list, so the account does not convert currency on every trade. USD names in `universes/us_large.txt` are added only when `search.usd_cash` is above zero. Optional `watchlist` pins are included too. Warrants, preferreds, rights, and debentures are dropped.
+2. Price. Close at least 10, so a 1 percent stop is not inside a penny-stock spread.
+3. Dollar volume. At least 5,000,000 a day, and large enough that a position sized from a 1 percent stop is at most 1 percent of a typical day. A larger account therefore demands more liquid names.
+4. Range. 14-day average true range between 0.8 and 4 percent of price. Quieter names do not pay a 2 percent target on this holding period. Wider names push the stop past the 1.5 percent band.
+5. Trend. Close above the 50-day average, and that average higher than it was ten sessions ago. Names that fail here stay in the universe report and are not setup candidates.
+6. Already open. A symbol below its entry is `add_to_loser`. Any other open symbol is `already_open`. Nothing is added.
+7. Setup A only, until the journal gate passes and you set `enable_breakout: true`. Setup A is a pullback toward the 20-day average that has stopped falling: a recent bar touched that average from above, today's close is up, and today's low is not a new pullback low.
+8. Earnings. A known earnings date inside five trading days is skipped. An unknown earnings date stays off the action list.
+9. Stop. The stop is the pullback low minus 0.1 percent. The distance from the close to that stop must be between 0.75 percent and 1.5 percent, so a 2R to 3R target lands near a 2 to 3 percent price move.
+10. Costs. Round-trip commission plus a currency conversion, when the symbol currency does not match cash already held, must leave most of a 2 percent gain. The default conversion is a flat 2 currency units each way. Matching cash means that fee is not charged on the trade.
+11. Rank. Names that pass are ordered by matching currency, then by a stop closest to 1 percent, then by the steeper rising 50-day average.
+12. Size and cap. `shares = (0.005 * equity) / (entry - stop)`, rounded down. One share that would risk more than 0.5 percent is skipped. If deployable cash is short, the share count is reduced and the risk is smaller. At most 4 to 6 positions are open. The rest of the account stays in cash or the long-term ETFs.
 
 Setup B, a breakout from a tight multi-day range on higher volume, uses the same trend, stop, cost, and size rules. It returns no orders while `enable_breakout` is false or the journal has not passed.
 
@@ -37,8 +43,11 @@ pip install -e .
 cp config.example.yaml config.yaml
 # edit equity, cash, fees, and your watchlist
 
-# weekdays 16:20, after the daily bar
+# weekdays 16:20, after the daily bar. This searches, then writes the orders.
 desk --config config.yaml run daily
+
+# search only, any day. Does not create orders.
+desk --config config.yaml run universe
 
 # weekdays 09:00, reprint only
 desk --config config.yaml show today

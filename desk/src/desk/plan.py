@@ -13,7 +13,8 @@ from desk.exits import propose_actions
 from desk.harvest import evaluate_harvest, load_lots
 from desk.journal import Journal
 from desk.picker import Order, Skip, screen, select_orders
-from desk.report import render_daily, render_harvest, render_weekly
+from desk.report import render_daily, render_harvest, render_universe, render_weekly
+from desk.universe import SearchResult, search_market
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,16 @@ def _cancel_gapped_orders(market: MarketData, journal: Journal, asof: date) -> l
     return notes
 
 
+def _publish_universe(config: DeskConfig, journal: Journal, asof: date, text: str) -> Path:
+    path = config.out_dir / f"universe-{asof.isoformat()}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    key = asof.isoformat()
+    if not journal.has_run("universe", key):
+        journal.record_run("universe", key, str(path))
+    return path
+
+
 def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: date) -> Written:
     require_trading_day(asof)
     key = asof.isoformat()
@@ -73,6 +84,14 @@ def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: da
         actions.extend(proposed)
 
     gate = journal.gate(config.journal_min_trades)
+    found = search_market(config, market, asof)
+    if config.search_enabled:
+        _publish_universe(
+            config,
+            journal,
+            asof,
+            render_universe(session=asof, config=config, rows=found.rows),
+        )
     orders: list[Order] = []
     skips: list[Skip] = []
     if not gate.allow_new_entries:
@@ -90,9 +109,10 @@ def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: da
             asof,
             open_trades,
             allow_breakout=gate.allow_breakout and config.enable_breakout,
+            symbols=found.tradable,
         )
         skips.extend(setup_skips)
-        currencies = {spec.symbol: spec.currency for spec in config.watchlist}
+        currencies = {spec.symbol: spec.currency for spec in found.tradable}
         sized, size_skips = select_orders(config, signals, currencies, open_trades)
         orders = sized
         skips.extend(size_skips)
@@ -106,6 +126,7 @@ def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: da
         skips=skips,
         open_count=len(open_trades),
         cancelled=cancelled,
+        search_summary=found.summary,
     )
     path = config.out_dir / f"plan-{key}.md"
     written = _write_once(journal, "daily", key, path, text)
@@ -134,6 +155,30 @@ def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: da
                 detail=skip.detail,
             )
     return written
+
+
+def run_universe(config: DeskConfig, market: MarketData, journal: Journal, asof: date) -> Written:
+    """Write the search report without creating orders.
+
+    A second call the same day returns the file already written. The daily run
+    still refreshes that file from the closing prices before it picks orders.
+    """
+    key = asof.isoformat()
+    existing = journal.plan_path("universe", key)
+    if existing:
+        return Written(Path(existing), created=False)
+    found: SearchResult = search_market(config, market, asof)
+    if config.search_enabled:
+        text = render_universe(session=asof, config=config, rows=found.rows)
+    else:
+        names = ", ".join(spec.symbol for spec in found.tradable) or "none"
+        text = (
+            f"# Universe search {key}\n\n"
+            "Search is off. The daily plan uses the watchlist only.\n\n"
+            f"Watchlist: {names}\n"
+        )
+    path = _publish_universe(config, journal, asof, text)
+    return Written(path, created=True)
 
 
 def run_weekly(config: DeskConfig, journal: Journal, asof: date) -> Written:

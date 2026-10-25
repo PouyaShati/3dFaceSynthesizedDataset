@@ -17,7 +17,13 @@ def test_example_config_loads_the_published_rules():
     assert config.enable_breakout is False
     assert config.usd_conversion_fee == 2.0
     assert config.journal_min_trades == 30
-    assert [spec.symbol for spec in config.watchlist] == ["EXAMPLE.TO", "EXAMPLE"]
+    assert config.watchlist == ()
+    assert config.search_enabled is True
+    assert config.min_price == 10
+    assert config.min_atr_pct == 0.008
+    assert config.max_atr_pct == 0.04
+    assert config.usd_cash == 0
+    assert config.cad_universe.is_file()
 
 
 def test_position_cap_and_risk_fraction_are_fixed(tmp_path):

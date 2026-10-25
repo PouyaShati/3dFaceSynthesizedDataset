@@ -9,6 +9,7 @@ from desk.exits import ExitAction
 from desk.harvest import HarvestRow
 from desk.journal import Gate
 from desk.picker import Order, Skip
+from desk.universe import SearchRow
 
 
 def _money(value: float) -> str:
@@ -29,6 +30,7 @@ def render_daily(
     skips: list[Skip],
     open_count: int,
     cancelled: list[str],
+    search_summary: str = "",
 ) -> str:
     lines = [
         f"# Daily plan {session.isoformat()}",
@@ -40,8 +42,10 @@ def render_daily(
             f"Journal: {gate.closed_count} closed, net after costs {_money(gate.net_after_costs)}, "
             f"gate {gate.reason}."
         ),
-        "",
     ]
+    if search_summary:
+        lines.append(search_summary)
+    lines.append("")
     if config.account_type == "tfsa":
         lines.extend(
             [
@@ -106,6 +110,56 @@ def render_daily(
             "",
         ]
     )
+    return "\n".join(lines)
+
+
+_STAGE_TITLES = {
+    "in_trend": "In trend, handed to the pullback test",
+    "no_trend": "Liquid, but not above a rising 50-day average",
+    "atr_low": "Too quiet for a 2 percent target",
+    "atr_high": "Too wide for a 1 percent stop",
+    "illiquid": "Dollar volume cannot hold the position",
+    "price": "Price too low for a 1 percent stop",
+    "short_history": "Not enough daily history",
+    "no_bars": "No prices",
+    "data_error": "Price download failed",
+    "excluded": "Not a common listing",
+}
+
+
+def render_universe(*, session: date, config: DeskConfig, rows: list[SearchRow]) -> str:
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row.stage] = counts.get(row.stage, 0) + 1
+    usd = "included because usd_cash is above zero" if config.usd_cash > 0 else "excluded until usd_cash is above zero"
+    lines = [
+        f"# Universe search {session.isoformat()}",
+        "",
+        "This search keeps names that can express a 1 percent stop and a 2 to 3 percent target.",
+        f"Price at least {config.min_price:.2f}. 14-day ATR between {config.min_atr_pct * 100:.2f} and {config.max_atr_pct * 100:.2f} percent of price.",
+        (
+            f"Average dollar volume at least {_money(config.min_avg_dollar_volume)}, and large enough "
+            f"that a position sized from a 1 percent stop is at most {config.max_participation * 100:.1f} percent of a typical day."
+        ),
+        "Direction is the strategy rule: close above a rising 50-day average.",
+        f"CAD names come from the Toronto large-cap file. USD names are {usd}.",
+        "",
+        f"Scanned: {len(rows)}",
+        f"In trend: {counts.get('in_trend', 0)}",
+        "",
+    ]
+    for stage, title in _STAGE_TITLES.items():
+        group = [row for row in rows if row.stage == stage]
+        if not group:
+            continue
+        lines.append(f"## {title}")
+        for row in group:
+            label = f"{row.symbol} {row.name}".strip()
+            lines.append(f"- {label} ({row.currency}): {row.detail}")
+        lines.append("")
+    if not rows:
+        lines.append("Search is off. The daily plan uses the watchlist only.")
+        lines.append("")
     return "\n".join(lines)
 
 

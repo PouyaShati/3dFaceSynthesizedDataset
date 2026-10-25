@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -9,7 +10,7 @@ from desk.calendar import in_earnings_blackout
 from desk.config import DeskConfig
 from desk.costs import cost_eats_target, needs_conversion, round_trip_cost
 from desk.data import MarketData
-from desk.models import OpenTrade, SetupRejection, SetupSignal
+from desk.models import OpenTrade, SetupRejection, SetupSignal, SymbolSpec
 from desk.risk import position_shares
 from desk.setups.breakout import evaluate_breakout
 from desk.setups.pullback import evaluate_pullback
@@ -50,13 +51,19 @@ def screen(
     open_trades: list[OpenTrade],
     *,
     allow_breakout: bool,
+    symbols: Sequence[SymbolSpec] | None = None,
 ) -> tuple[list[SetupSignal], list[Skip]]:
-    """Apply trend, setup, and earnings rules. Sizing happens after ranking."""
+    """Apply trend, setup, and earnings rules. Sizing happens after ranking.
+
+    `symbols` is the group that already passed the universe search. When it is
+    omitted, the hand-written watchlist is used.
+    """
+    chosen = config.watchlist if symbols is None else symbols
     open_by_symbol = {trade.symbol: trade for trade in open_trades}
     signals: list[SetupSignal] = []
     skips: list[Skip] = []
 
-    for spec in config.watchlist:
+    for spec in chosen:
         trade = open_by_symbol.get(spec.symbol)
         if trade is not None:
             bars = market.bars(spec.symbol, asof)

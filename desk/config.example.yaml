@@ -1,5 +1,5 @@
 # Copy to desk/config.yaml and replace the sample book with your own figures.
-# Symbols below are format examples, not recommendations.
+# The search universe is universes/tsx60.txt. The watchlist is only for extra names.
 
 timezone: America/Toronto
 
@@ -41,15 +41,26 @@ breakout_volume_multiple: 1.5
 
 min_harvest_loss: 50
 
+# Stock search fitted to a 1 percent stop and a 2-3 percent target.
+# CAD large caps are always searched. USD names are searched only when usd_cash
+# is already in the account, so the conversion fee is not paid on every trade.
+search:
+  enabled: true
+  cad_universe: universes/tsx60.txt
+  usd_universe: universes/us_large.txt
+  usd_cash: 0
+  min_price: 10
+  min_avg_dollar_volume: 5000000
+  max_participation: 0.01
+  atr_window: 14
+  min_atr_pct: 0.008
+  max_atr_pct: 0.04
+  dollar_volume_window: 20
+
 paths:
   db: data/desk.sqlite
   out: out
   lots: lots.example.csv
 
-watchlist:
-  - symbol: EXAMPLE.TO
-    currency: CAD
-    name: Format example only
-  - symbol: EXAMPLE
-    currency: USD
-    name: Format example only
+# Optional pins that are not already in the universe files.
+watchlist: []
