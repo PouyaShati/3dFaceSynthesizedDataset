@@ -1,0 +1,26 @@
+[project]
+name = "desk"
+version = "0.1.0"
+description = "Scheduled rules engine for a daily-trend long book, journal gate, and tax-lot harvest checklist."
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+yahoo = ["yfinance>=0.2.40"]
+
+[project.scripts]
+desk = "desk.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+desk = ["static/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,16 @@
+# Australia large caps.
+BHP.AX BHP
+CBA.AX Commonwealth Bank
+CSL.AX CSL
+NAB.AX National Australia Bank
+WBC.AX Westpac
+ANZ.AX ANZ
+WES.AX Wesfarmers
+MQG.AX Macquarie
+FMG.AX Fortescue
+GMG.AX Goodman
+WOW.AX Woolworths
+RIO.AX Rio Tinto
+TLS.AX Telstra
+ALL.AX Aristocrat
+TCL.AX Transurban

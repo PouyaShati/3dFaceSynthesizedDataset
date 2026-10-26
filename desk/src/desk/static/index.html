@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Short-term trade desk</title>
+  <style>
+    :root {
+      --ink: #1c1915;
+      --muted: #5c564c;
+      --line: #d9d1c3;
+      --paper: #f6f3ec;
+      --card: #fffdf8;
+      --accent: #8c3d1e;
+      --accent-soft: #f3e4d8;
+      --ok: #1f6b45;
+      --warn: #8a5a12;
+      --bad: #8d2b2b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+    header, main { max-width: 1180px; margin: 0 auto; padding: 24px 20px; }
+    header { padding-bottom: 0; }
+    h1 { font-size: 28px; font-weight: 650; margin: 0 0 6px; letter-spacing: -0.03em; }
+    h2 { font-size: 18px; margin: 0 0 12px; }
+    p { margin: 0; }
+    .lede { color: var(--muted); max-width: 68ch; }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+    input, select, button { font: inherit; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--ink);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .checks { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+    .checks input { width: auto; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+    }
+    button.secondary { background: var(--ink); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .status { min-height: 1.2em; margin-top: 10px; color: var(--muted); font-size: 13px; }
+    .status.error { color: var(--bad); }
+    .money-grid, .fx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; color: var(--muted); }
+    .stack { display: grid; gap: 16px; }
+    .strategy { display: grid; gap: 8px; }
+    .strategy div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+    .strategy dt { color: var(--muted); }
+    .markets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .badge {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    td.detail { white-space: normal; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .thesis { color: var(--muted); font-size: 13px; }
+    .counts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .count { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 90px; }
+    .count b { display: block; font-size: 18px; }
+    .empty { color: var(--muted); }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .strategy div { grid-template-columns: 1fr; gap: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Short-term trade desk</h1>
+    <p class="lede">Set the money, read the rules, and see each idea's source, size, stop, and exit. This page does not send orders to a broker, and it is not tax or investment advice. Risk stays at 0.5 percent of the equity you type.</p>
+  </header>
+  <main class="layout">
+    <section class="card">
+      <h2>Money and plan</h2>
+      <div class="row">
+        <div>
+          <label for="equity">Equity</label>
+          <input id="equity" type="number" min="1" step="100">
+        </div>
+        <div>
+          <label for="deployable">Deployable cash</label>
+          <input id="deployable" type="number" min="0" step="100">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="positions">Open positions</label>
+          <select id="positions">
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+          </select>
+        </div>
+        <div>
+          <label for="exit">Exit plan</label>
+          <select id="exit">
+            <option value="scale">Half at 2%, trail the rest</option>
+            <option value="fixed3">Exit the whole position at 3%</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="commission">Commission each way</label>
+          <input id="commission" type="number" min="0" step="0.01">
+        </div>
+        <div>
+          <label for="fee">Conversion fee each way</label>
+          <input id="fee" type="number" min="0" step="0.01">
+        </div>
+      </div>
+      <label for="spread">FX spread (basis points, 150 = 1.5%)</label>
+      <input id="spread" type="number" min="0" step="1">
+      <label>Cash already held, by currency</label>
+      <div id="cash" class="money-grid"></div>
+      <details>
+        <summary>Planning exchange rates into the account currency</summary>
+        <div id="fx" class="fx-grid"></div>
+      </details>
+      <div class="checks">
+        <input id="demo" type="checkbox">
+        <label for="demo" style="margin:0">Use offline sample prices (one fitted name per market)</label>
+      </div>
+      <div class="actions">
+        <button id="scan" type="button">Search markets</button>
+        <button id="resize" class="secondary" type="button">Update size and exits</button>
+      </div>
+      <p id="status" class="status"></p>
+    </section>
+    <section class="stack">
+      <article class="card">
+        <h2>Strategy</h2>
+        <div id="strategy" class="strategy"><p class="empty">Search to fill the book from the rules below.</p></div>
+        <div id="markets" class="markets"></div>
+      </article>
+      <article class="card">
+        <h2>Orders</h2>
+        <p id="summary" class="lede"></p>
+        <div id="orders"></div>
+      </article>
+      <article class="card">
+        <h2>In trend, waiting for a pullback</h2>
+        <div id="waiting"></div>
+      </article>
+      <article class="card">
+        <h2>Search stages</h2>
+        <div id="counts" class="counts"></div>
+      </article>
+      <article class="card">
+        <h2>Skipped</h2>
+        <div id="skipped"></div>
+      </article>
+      <article class="card">
+        <h2>Open exits</h2>
+        <div id="exits"></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const currencies = ["CAD", "USD", "EUR", "GBP", "JPY", "AUD", "HKD", "CHF"];
+    const cashBox = document.querySelector("#cash");
+    const fxBox = document.querySelector("#fx");
+    const statusEl = document.querySelector("#status");
+    let accountCurrency = "CAD";
+
+    function field(id) { return document.querySelector(id); }
+
+    function moneyInput(container, code, attr) {
+      const wrap = document.createElement("div");
+      const label = document.createElement("label");
+      label.textContent = code;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.step = "any";
+      input.dataset[attr] = code;
+      wrap.append(label, input);
+      container.append(wrap);
+      return input;
+    }
+
+    currencies.forEach((code) => {
+      moneyInput(cashBox, code, "cash");
+      moneyInput(fxBox, code, "fx");
+    });
+
+    function setStatus(text, isError) {
+      statusEl.textContent = text;
+      statusEl.className = isError ? "status error" : "status";
+    }
+
+    function payload() {
+      const cash = {};
+      const fxRates = {};
+      document.querySelectorAll("[data-cash]").forEach((el) => { cash[el.dataset.cash] = Number(el.value || 0); });
+      document.querySelectorAll("[data-fx]").forEach((el) => { fxRates[el.dataset.fx] = Number(el.value || 0); });
+      return {
+        equity: Number(field("#equity").value),
+        deployable_cash: Number(field("#deployable").value),
+        max_positions: Number(field("#positions").value),
+        exit_plan: field("#exit").value,
+        commission_per_trade: Number(field("#commission").value),
+        usd_conversion_fee: Number(field("#fee").value),
+        fx_spread_bps: Number(field("#spread").value),
+        demo: field("#demo").checked,
+        cash,
+        fx_rates: fxRates,
+      };
+    }
+
+    function px(value) {
+      if (value === null || value === undefined) return "—";
+      const digits = Math.abs(value) >= 100 ? 2 : 4;
+      return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: digits });
+    }
+
+    function cad(value) {
+      return accountCurrency + " " + Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderStrategy(strategy) {
+      const rows = [
+        ["Direction", strategy.direction],
+        ["Entry", strategy.entry],
+        ["Risk", strategy.risk],
+        ["Stop", strategy.stop],
+        ["Target", strategy.target],
+        ["Exit", strategy.exit],
+        ["Book", strategy.book],
+      ];
+      const box = field("#strategy");
+      box.innerHTML = "";
+      rows.forEach(([name, text]) => {
+        const row = document.createElement("div");
+        const term = document.createElement("dt");
+        term.textContent = name;
+        const detail = document.createElement("dd");
+        detail.textContent = text;
+        row.append(term, detail);
+        box.append(row);
+      });
+      const markets = field("#markets");
+      markets.innerHTML = "";
+      (strategy.markets || []).forEach((market) => {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        const scale = market.price_scale && market.price_scale !== 1 ? `, quote × ${market.price_scale}` : "";
+        badge.textContent = `${market.source} (${market.currency}${scale})`;
+        markets.append(badge);
+      });
+    }
+
+    function table(headers, rows) {
+      if (!rows.length) {
+        const p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "None.";
+        return p;
+      }
+      const tableEl = document.createElement("table");
+      const head = document.createElement("tr");
+      headers.forEach((name) => {
+        const cell = document.createElement("th");
+        cell.textContent = name;
+        head.append(cell);
+      });
+      tableEl.append(head);
+      rows.forEach((cells) => {
+        const row = document.createElement("tr");
+        cells.forEach((value, index) => {
+          const cell = document.createElement("td");
+          if (typeof value === "number") {
+            cell.className = "num";
+            cell.textContent = String(value);
+          } else {
+            cell.textContent = value;
+          }
+          if (index === cells.length - 1 && headers[index] === "") cell.className = "thesis";
+          row.append(cell);
+        });
+        tableEl.append(row);
+      });
+      return tableEl;
+    }
+
+    function render(view) {
+      renderStrategy(view.strategy);
+      const summary = field("#summary");
+      summary.textContent = `${view.asof}. ${view.summary} Journal: ${view.gate}.`;
+      const orders = field("#orders");
+      orders.innerHTML = "";
+      if (!view.orders.length) {
+        const p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "No new order.";
+        orders.append(p);
+      } else {
+        const tableEl = document.createElement("table");
+        const head = document.createElement("tr");
+        ["Symbol", "Source", "Currency", "Shares", "Entry", "Stop", "Stop %", "Target", "Risk"].forEach((name) => {
+          const cell = document.createElement("th");
+          cell.textContent = name;
+          head.append(cell);
+        });
+        tableEl.append(head);
+        view.orders.forEach((order) => {
+          const row = document.createElement("tr");
+          const label = order.name && order.name !== order.symbol ? `${order.symbol} ${order.name}` : order.symbol;
+          const cells = [
+            label,
+            order.source || "Watchlist",
+            order.currency,
+            String(order.shares),
+            px(order.entry),
+            px(order.stop),
+            (order.stop_pct * 100).toFixed(2) + "%",
+            px(order.target),
+            cad(order.dollar_risk) + ` (${(order.risk_pct_of_equity * 100).toFixed(2)}%)`,
+          ];
+          cells.forEach((value, index) => {
+            const cell = document.createElement("td");
+            if (index >= 3 && index <= 7) cell.className = "num";
+            cell.textContent = value;
+            row.append(cell);
+          });
+          const detail = document.createElement("tr");
+          const note = document.createElement("td");
+          note.colSpan = 9;
+          note.className = "detail";
+          const exit = document.createElement("div");
+          const conversion = order.convert ? "Currency conversion is required." : "No currency conversion.";
+          exit.textContent = `Exit: ${order.exit} ${conversion} Estimated round-trip cost ${cad(order.estimated_cost)}.`;
+          const thesis = document.createElement("div");
+          thesis.className = "thesis";
+          thesis.textContent = order.thesis;
+          note.append(exit, thesis);
+          detail.append(note);
+          tableEl.append(row, detail);
+        });
+        orders.append(tableEl);
+      }
+      field("#waiting").replaceChildren(table(
+        ["Symbol", "Source", "Currency", "Why it is waiting"],
+        view.waiting.map((row) => [row.symbol, row.source, row.currency, row.detail])
+      ));
+      const counts = field("#counts");
+      counts.innerHTML = "";
+      Object.entries(view.stage_counts).forEach(([stage, count]) => {
+        const item = document.createElement("div");
+        item.className = "count";
+        const strong = document.createElement("b");
+        strong.textContent = String(count);
+        item.append(strong, document.createTextNode(stage.replaceAll("_", " ")));
+        counts.append(item);
+      });
+      field("#skipped").replaceChildren(table(
+        ["Symbol", "Reason", "Detail"],
+        view.skipped.map((row) => [row.symbol, row.reason, row.detail])
+      ));
+      field("#exits").replaceChildren(table(
+        ["Symbol", "Action", "Detail"],
+        view.open_exits.map((row) => [row.symbol, row.kind, row.detail])
+      ));
+    }
+
+    async function post(path) {
+      document.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+      setStatus(path.endsWith("scan") ? "Searching…" : "Resizing from the last prices…", false);
+      try {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload()),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Request failed");
+        render(data);
+        setStatus(`${data.orders.length} order(s) for ${data.asof}.`, false);
+      } catch (error) {
+        setStatus(error.message, true);
+      } finally {
+        document.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+      }
+    }
+
+    field("#scan").addEventListener("click", () => post("/api/scan"));
+    field("#resize").addEventListener("click", () => post("/api/resize"));
+
+    fetch("/api/defaults").then((response) => response.json()).then((data) => {
+      accountCurrency = data.currency || "CAD";
+      field("#equity").value = data.equity;
+      field("#deployable").value = data.deployable_cash;
+      field("#positions").value = String(data.max_positions);
+      field("#exit").value = data.exit_plan;
+      field("#commission").value = data.commission_per_trade;
+      field("#fee").value = data.usd_conversion_fee;
+      field("#spread").value = data.fx_spread_bps;
+      field("#demo").checked = Boolean(data.demo_default);
+      currencies.forEach((code) => {
+        document.querySelector(`[data-cash="${code}"]`).value = (data.cash && data.cash[code]) || 0;
+        document.querySelector(`[data-fx="${code}"]`).value = (data.fx_rates && data.fx_rates[code]) || 1;
+      });
+      const markets = field("#markets");
+      (data.markets || []).forEach((source) => {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = source;
+        markets.append(badge);
+      });
+    }).catch((error) => setStatus(error.message, true));
+  </script>
+</body>
+</html>

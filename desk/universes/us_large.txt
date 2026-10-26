@@ -1,0 +1,42 @@
+# Liquid US large caps. Used only when usd_cash is above zero, so a conversion
+# fee is not charged on every trade. This is a sleeve, not an index product.
+AAPL Apple
+MSFT Microsoft
+AMZN Amazon
+GOOGL Alphabet
+META Meta Platforms
+NVDA Nvidia
+AVGO Broadcom
+BRK-B Berkshire Hathaway
+JPM JPMorgan Chase
+UNH UnitedHealth
+XOM Exxon Mobil
+V Visa
+MA Mastercard
+COST Costco
+HD Home Depot
+PG Procter and Gamble
+JNJ Johnson and Johnson
+BAC Bank of America
+WMT Walmart
+ORCL Oracle
+CRM Salesforce
+KO Coca-Cola
+PEP PepsiCo
+CSCO Cisco
+MRK Merck
+ACN Accenture
+LIN Linde
+ABBV AbbVie
+WFC Wells Fargo
+CVX Chevron
+DIS Walt Disney
+MCD McDonald's
+IBM IBM
+GE GE Aerospace
+CAT Caterpillar
+BA Boeing
+GS Goldman Sachs
+AMGN Amgen
+INTU Intuit
+QCOM Qualcomm

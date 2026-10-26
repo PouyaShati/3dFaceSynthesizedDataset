@@ -1,0 +1,75 @@
+# Copy to desk/config.yaml and replace the sample book with your own figures.
+# search.scope global reads every sleeve under universes/. The watchlist is only for extra names.
+
+timezone: America/Toronto
+
+short_term:
+  account_type: non_registered   # non_registered or tfsa
+  currency: CAD
+  equity: 20000
+  deployable_cash: 10000
+  max_positions: 5               # 4, 5, or 6
+  risk_fraction: 0.005           # 0.5 percent of equity if the stop is hit
+
+commission_per_trade: 0.0
+usd_conversion_fee: 2.0          # flat fee charged when a trade must convert currency
+fx_spread_bps: 0                 # set 150 for a 1.5 percent spread, if that is what you pay
+cost_skip_fraction_of_target: 0.30
+fx_rates:
+  CAD: 1.0
+  USD: 1.35                      # planning rates into the account currency, not a live quote
+  EUR: 1.47
+  GBP: 1.78
+  JPY: 0.009
+  AUD: 0.90
+  HKD: 0.17
+  CHF: 1.60
+
+min_stop_pct: 0.0075
+max_stop_pct: 0.015
+stop_buffer_pct: 0.001
+exit_plan: scale                 # scale (half at 2 percent, trail) or fixed3
+
+sma_fast: 20
+sma_slow: 50
+sma_rise_lookback: 10
+pullback_lookback: 8
+touch_tolerance_pct: 0.005
+touch_max_pierce_pct: 0.02
+earnings_blackout_days: 5
+journal_min_trades: 30
+active_setup: pullback
+enable_breakout: false           # stays off until the journal gate has passed and you turn this on
+
+breakout_range_days: 7
+breakout_max_width_pct: 0.03
+breakout_volume_multiple: 1.5
+
+min_harvest_loss: 50
+
+# Stock search fitted to a 1 percent stop and a 2-3 percent target.
+# scope global searches every sleeve. A foreign name still pays conversion unless
+# search.cash already holds that currency. scope listed keeps the older split:
+# Toronto always, and the US file only when usd_cash is above zero.
+search:
+  enabled: true
+  scope: global
+  cad_universe: universes/tsx60.txt
+  usd_universe: universes/us_large.txt
+  usd_cash: 0
+  cash: {}
+  min_price: 10
+  min_avg_dollar_volume: 5000000
+  max_participation: 0.01
+  atr_window: 14
+  min_atr_pct: 0.008
+  max_atr_pct: 0.04
+  dollar_volume_window: 20
+
+paths:
+  db: data/desk.sqlite
+  out: out
+  lots: lots.example.csv
+
+# Optional pins that are not already in the universe files.
+watchlist: []

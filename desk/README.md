@@ -1,0 +1,100 @@
+# Short-term trade desk
+
+Rules engine for one daily-trend long setup. It writes the next session's action list after the close. It does not place broker orders, and it is not tax or investment advice.
+
+The short-term book is the non-registered account. Long-term ETFs stay outside this scanner. A TFSA loss cannot be harvested. Pointing the short-term book at a TFSA prints a warning, because frequent short-term trading there can be treated as business activity.
+
+## Stock-picking process
+
+The search is built for this strategy, not for a generic momentum screen. A 1 percent stop and a 2 to 3 percent target need a name whose normal day is about that size, and that is liquid enough to enter and leave without giving the target back. Wider swing screens that want a 3 to 8 percent daily range need wider stops, so they are not used. A 200-day average is not added. Direction stays the rule already set: above a rising 50-day average.
+
+`desk run daily` searches, then tests the setup. `desk run universe` writes the search only.
+
+1. Universe. `search.scope: global` reads every file in `universes/`: Toronto, the United States, London, Europe, Switzerland, Tokyo, Australia, and Hong Kong. London Yahoo quotes are pence, so those prices are scaled by 0.01 before the cash and cost checks. A name outside the account currency is marked for conversion unless `search.cash` already holds that currency. `search.scope: listed` is the older split: Toronto always, and `universes/us_large.txt` only when `search.usd_cash` is above zero. Optional `watchlist` pins are included too. Warrants, preferreds, rights, and debentures are dropped.
+2. Price. The close, in the account currency, is at least 10, so a 1 percent stop is not inside a penny-stock spread. Planning exchange rates in `fx_rates` do that conversion. They are book rates, not a live quote.
+3. Dollar volume. At least 5,000,000 a day, and large enough that a position sized from a 1 percent stop is at most 1 percent of a typical day. A larger account therefore demands more liquid names.
+4. Range. 14-day average true range between 0.8 and 4 percent of price. Quieter names do not pay a 2 percent target on this holding period. Wider names push the stop past the 1.5 percent band.
+5. Trend. Close above the 50-day average, and that average higher than it was ten sessions ago. Names that fail here stay in the universe report and are not setup candidates.
+6. Already open. A symbol below its entry is `add_to_loser`. Any other open symbol is `already_open`. Nothing is added.
+7. Setup A only, until the journal gate passes and you set `enable_breakout: true`. Setup A is a pullback toward the 20-day average that has stopped falling: a recent bar touched that average from above, today's close is up, and today's low is not a new pullback low.
+8. Earnings. A known earnings date inside five trading days is skipped. An unknown earnings date stays off the action list.
+9. Stop. The stop is the pullback low minus 0.1 percent. The distance from the close to that stop must be between 0.75 percent and 1.5 percent, so a 2R to 3R target lands near a 2 to 3 percent price move.
+10. Costs. Round-trip commission plus a currency conversion, when the symbol currency does not match cash already held, must leave most of a 2 percent gain. The default conversion is a flat 2 currency units each way. Matching cash means that fee is not charged on the trade.
+11. Rank. Names that pass are ordered by matching currency, then by a stop closest to 1 percent, then by the steeper rising 50-day average.
+12. Size and cap. `shares = (0.005 * equity) / (entry - stop)`, rounded down. One share that would risk more than 0.5 percent is skipped. If deployable cash is short, the share count is reduced and the risk is smaller. At most 4 to 6 positions are open. The rest of the account stays in cash or the long-term ETFs.
+
+Setup B, a breakout from a tight multi-day range on higher volume, uses the same trend, stop, cost, and size rules. It returns no orders while `enable_breakout` is false or the journal has not passed.
+
+## Payoff and stops
+
+`exit_plan: scale` sells half near 2 percent and then trails the rest under the recent three-day low. The stop moves only up, and only after the half sale is recorded.
+
+`exit_plan: fixed3` exits the whole position at 3 percent when that price is at least twice the initial risk.
+
+A stop-out on the daily bar takes priority over a target on the same bar. A next-session open at or through the stop cancels that idea. Do not chase it.
+
+## Schedule
+
+Times are America/Toronto. Run each command once. A second run the same session reprints the file it already wrote.
+
+```bash
+cd desk
+pip install -e .
+cp config.example.yaml config.yaml
+# edit equity, cash, fees, and your watchlist
+
+# weekdays 16:20, after the daily bar. This searches, then writes the orders.
+desk --config config.yaml run daily
+
+# search only, any day. Does not create orders.
+desk --config config.yaml run universe
+
+# weekdays 09:00, reprint only
+desk --config config.yaml show today
+
+# Friday 16:40
+desk --config config.yaml run weekly
+
+# first Sunday of the month, and from 15 November
+desk --config config.yaml run harvest
+```
+
+Prices for a live run need the optional Yahoo extra: `pip install -e '.[yahoo]'`.
+
+## Interactive desk
+
+`desk serve` opens a page on this machine only. Type the equity, deployable cash, position cap, exit plan, fees, cash by currency, and planning exchange rates. Search markets, then read each order's source market, share count, stop, target, conversion flag, and the exit rule. Changing the money and choosing Update size and exits resizes that same set of prices. It does not download them again. Risk stays at 0.5 percent.
+
+```bash
+cd desk
+desk --config config.yaml serve --demo --port 8765
+```
+
+`--demo` fills one fitted pullback in each market so the page works without a network. Leave the sample-price box unchecked, then search, to download the global sleeves from Yahoo. The page still does not place an order.
+
+## Journal
+
+Record the fill you actually take. The tool will refuse a share count that risks more than 0.5 percent, a second position in an open symbol, a seventh position, and any new entry after the gate freezes.
+
+```bash
+desk --config config.yaml journal add --symbol EXAMPLE.TO --entry 50 --stop 49.50 --date 2026-10-23 --thesis "Pullback to the 20-day average stopped falling."
+desk --config config.yaml journal half --id 1
+desk --config config.yaml journal close --id 1 --exit-price 51 --date 2026-10-24
+```
+
+After 30 closed paper or live trades, new entries continue only when the net result after commissions and conversion is positive and the conversion fee was not charged on every closed trade. Until then the breakout stays off. Open positions still get their stop and exit lines when the gate is frozen.
+
+## Tax-lot harvest
+
+`lots.csv` columns: `symbol,account,acquired,shares,acb,currency`. The report lists non-registered losses that clear commissions, conversion, and the dollar floor. TFSA and other registered lots are excluded. A symbol with an open short-term trade is excluded.
+
+A buy of the same symbol in the 30 calendar days before the review, in any lot or journaled trade on file, blocks the candidate. The report also gives the earliest repurchase date, 30 calendar days after the review, and an empty replacement field. You confirm that a replacement is not identical property, and you check spouse, TFSA, and RRSP accounts this file cannot see.
+
+## Tests
+
+```bash
+cd desk
+python -m pytest
+```
+
+The tests use fixture prices. They do not call the network.
