@@ -31,11 +31,15 @@ class Order:
     convert: bool
     estimated_cost: float
     dollar_risk: float
+    source: str = ""
+    name: str = ""
 
 
 def _rank_key(order_signal: SetupSignal, currency: str, account_currency: str) -> tuple:
     conversion_penalty = 0 if currency.upper() == account_currency.upper() else 1
-    distance_from_one_percent = abs(order_signal.stop_pct - 0.01)
+    # Round so two stops that are the same to a thousandth of a percent
+    # fall through to the slope instead of to floating-point noise.
+    distance_from_one_percent = round(abs(order_signal.stop_pct - 0.01), 6)
     return (
         conversion_penalty,
         distance_from_one_percent,
@@ -151,19 +155,34 @@ def screen(
     return signals, skips
 
 
+def _as_spec(symbol: str, listed: dict[str, SymbolSpec | str], fallback: str) -> SymbolSpec:
+    value = listed.get(symbol, fallback)
+    if isinstance(value, SymbolSpec):
+        return value
+    return SymbolSpec(symbol, str(value))
+
+
 def select_orders(
     config: DeskConfig,
     signals: list[SetupSignal],
-    currencies: dict[str, str],
+    currencies: dict[str, SymbolSpec | str],
     open_trades: list[OpenTrade],
 ) -> tuple[list[Order], list[Skip]]:
     """Rank qualifying names and size at most the free slots."""
     slots = config.max_positions - len(open_trades)
-    reserved = sum(trade.shares * trade.entry_price for trade in open_trades)
+    reserved = 0.0
+    for trade in open_trades:
+        spec = _as_spec(trade.symbol, currencies, trade.currency or config.currency)
+        rate = config.fx_rates.get(spec.currency.upper(), 1.0)
+        reserved += trade.shares * trade.entry_price * spec.price_scale * rate
     cash = config.deployable_cash - reserved
     ranked = sorted(
         signals,
-        key=lambda signal: _rank_key(signal, currencies.get(signal.symbol, config.currency), config.currency),
+        key=lambda signal: _rank_key(
+            signal,
+            _as_spec(signal.symbol, currencies, config.currency).currency,
+            config.currency,
+        ),
     )
     orders: list[Order] = []
     skips: list[Skip] = []
@@ -188,17 +207,22 @@ def select_orders(
                 )
             )
             continue
-        currency = currencies.get(signal.symbol, config.currency)
-        convert = needs_conversion(currency, config.currency)
+        spec = _as_spec(signal.symbol, currencies, config.currency)
+        currency = spec.currency
+        rate = config.fx_rates.get(currency.upper(), 1.0)
+        convert = needs_conversion(currency, config.currency, config.cash_balances)
         shares = position_shares(
             config.equity,
             config.risk_fraction,
             signal.entry,
             signal.stop,
             max(cash, 0.0),
+            spec.price_scale,
+            rate,
         )
+        risk_account = (signal.entry - signal.stop) * spec.price_scale * rate
         if shares is None:
-            reason = "risk_too_large" if (signal.entry - signal.stop) > config.equity * config.risk_fraction else "no_cash"
+            reason = "risk_too_large" if risk_account > config.equity * config.risk_fraction else "no_cash"
             detail = (
                 "One share would risk more than 0.5 percent of equity."
                 if reason == "risk_too_large"
@@ -206,7 +230,7 @@ def select_orders(
             )
             skips.append(Skip(signal.symbol, reason, detail))
             continue
-        if cost_eats_target(shares, signal.entry, config, convert):
+        if cost_eats_target(shares, signal.entry, config, convert, spec.price_scale, rate):
             skips.append(
                 Skip(
                     signal.symbol,
@@ -215,7 +239,7 @@ def select_orders(
                 )
             )
             continue
-        cost = round_trip_cost(shares, signal.entry, config, convert)
+        cost = round_trip_cost(shares, signal.entry, config, convert, spec.price_scale, rate)
         orders.append(
             Order(
                 signal=signal,
@@ -223,8 +247,10 @@ def select_orders(
                 currency=currency,
                 convert=convert,
                 estimated_cost=cost,
-                dollar_risk=shares * signal.risk_per_share,
+                dollar_risk=shares * risk_account,
+                source=spec.source,
+                name=spec.name,
             )
         )
-        cash -= shares * signal.entry
+        cash -= shares * signal.entry * spec.price_scale * rate
     return orders, skips

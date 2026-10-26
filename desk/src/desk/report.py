@@ -87,9 +87,10 @@ def render_daily(
                 else f" Exit at {_px(signal.target)} (3 percent)."
             )
             conversion = " Conversion is required." if order.convert else " No currency conversion."
+            origin = f"from {order.source} " if order.source else ""
             lines.append(
                 f"{index}. {signal.symbol} buy {order.shares} at {_px(signal.entry)} "
-                f"stop {_px(signal.stop)} ({signal.stop_pct * 100:.2f} percent). "
+                f"{origin}stop {_px(signal.stop)} ({signal.stop_pct * 100:.2f} percent). "
                 f"Risk {_money(order.dollar_risk)} ({order.dollar_risk / config.equity * 100:.2f} percent of equity)."
                 f"{partial}{conversion}"
             )
@@ -131,18 +132,25 @@ def render_universe(*, session: date, config: DeskConfig, rows: list[SearchRow])
     counts: dict[str, int] = {}
     for row in rows:
         counts[row.stage] = counts.get(row.stage, 0) + 1
-    usd = "included because usd_cash is above zero" if config.usd_cash > 0 else "excluded until usd_cash is above zero"
+    if config.search_scope == "global":
+        coverage = (
+            "Every sleeve is searched: Toronto, the United States, London, Europe, Switzerland, Tokyo, Australia, and Hong Kong. "
+            "A trade outside the account currency is flagged for conversion unless that currency's cash balance is already above zero."
+        )
+    else:
+        usd = "included because usd_cash is above zero" if config.usd_cash > 0 else "excluded until usd_cash is above zero"
+        coverage = f"CAD names come from the Toronto large-cap file. USD names are {usd}."
     lines = [
         f"# Universe search {session.isoformat()}",
         "",
         "This search keeps names that can express a 1 percent stop and a 2 to 3 percent target.",
-        f"Price at least {config.min_price:.2f}. 14-day ATR between {config.min_atr_pct * 100:.2f} and {config.max_atr_pct * 100:.2f} percent of price.",
+        f"Price at least {config.min_price:.2f} in the account currency. 14-day ATR between {config.min_atr_pct * 100:.2f} and {config.max_atr_pct * 100:.2f} percent of price.",
         (
             f"Average dollar volume at least {_money(config.min_avg_dollar_volume)}, and large enough "
             f"that a position sized from a 1 percent stop is at most {config.max_participation * 100:.1f} percent of a typical day."
         ),
         "Direction is the strategy rule: close above a rising 50-day average.",
-        f"CAD names come from the Toronto large-cap file. USD names are {usd}.",
+        coverage,
         "",
         f"Scanned: {len(rows)}",
         f"In trend: {counts.get('in_trend', 0)}",
@@ -155,7 +163,8 @@ def render_universe(*, session: date, config: DeskConfig, rows: list[SearchRow])
         lines.append(f"## {title}")
         for row in group:
             label = f"{row.symbol} {row.name}".strip()
-            lines.append(f"- {label} ({row.currency}): {row.detail}")
+            origin = f", {row.source}" if row.source else ""
+            lines.append(f"- {label} ({row.currency}{origin}): {row.detail}")
         lines.append("")
     if not rows:
         lines.append("Search is off. The daily plan uses the watchlist only.")

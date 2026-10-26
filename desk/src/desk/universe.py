@@ -19,6 +19,27 @@ class UniverseError(FileNotFoundError):
 
 
 @dataclass(frozen=True)
+class MarketList:
+    filename: str
+    currency: str
+    source: str
+    price_scale: float = 1.0
+
+
+# Liquid large-cap sleeves. London prices on Yahoo are quoted in pence.
+GLOBAL_MARKETS: tuple[MarketList, ...] = (
+    MarketList("tsx60.txt", "CAD", "Toronto large cap", 1.0),
+    MarketList("us_large.txt", "USD", "US large cap", 1.0),
+    MarketList("uk_large.txt", "GBP", "London large cap", 0.01),
+    MarketList("europe_large.txt", "EUR", "Europe large cap", 1.0),
+    MarketList("switzerland_large.txt", "CHF", "Switzerland large cap", 1.0),
+    MarketList("japan_large.txt", "JPY", "Tokyo large cap", 1.0),
+    MarketList("australia_large.txt", "AUD", "Australia large cap", 1.0),
+    MarketList("hong_kong_large.txt", "HKD", "Hong Kong large cap", 1.0),
+)
+
+
+@dataclass(frozen=True)
 class SearchRow:
     symbol: str
     name: str
@@ -28,6 +49,7 @@ class SearchRow:
     close: float | None = None
     atr_pct: float | None = None
     dollar_volume: float | None = None
+    source: str = ""
 
 
 @dataclass(frozen=True)
@@ -45,7 +67,16 @@ def is_common_listing(symbol: str) -> bool:
     return not any(token in root for token in _BLOCKED_TOKENS)
 
 
-def load_symbol_file(path: Path, currency: str) -> list[SymbolSpec]:
+def packaged_universe(filename: str) -> Path:
+    return Path(__file__).resolve().parents[2] / "universes" / filename
+
+
+def load_symbol_file(
+    path: Path,
+    currency: str,
+    source: str = "",
+    price_scale: float = 1.0,
+) -> list[SymbolSpec]:
     if not path.is_file():
         raise UniverseError(f"Universe file not found: {path}")
     specs: list[SymbolSpec] = []
@@ -54,7 +85,23 @@ def load_symbol_file(path: Path, currency: str) -> list[SymbolSpec]:
         if not text or text.startswith("#"):
             continue
         symbol, _, name = text.partition(" ")
-        specs.append(SymbolSpec(symbol.strip(), currency.upper(), name.strip()))
+        specs.append(
+            SymbolSpec(symbol.strip(), currency.upper(), name.strip(), source, price_scale)
+        )
+    return specs
+
+
+def global_specs() -> list[SymbolSpec]:
+    specs: list[SymbolSpec] = []
+    for market in GLOBAL_MARKETS:
+        specs.extend(
+            load_symbol_file(
+                packaged_universe(market.filename),
+                market.currency,
+                market.source,
+                market.price_scale,
+            )
+        )
     return specs
 
 
@@ -72,15 +119,19 @@ def candidate_specs(config: DeskConfig) -> list[SymbolSpec]:
         return list(config.watchlist)
     specs: list[SymbolSpec] = []
     seen: set[str] = set()
-    for spec in load_symbol_file(config.cad_universe, "CAD"):
+    if config.search_scope == "global":
+        loaded = global_specs()
+    else:
+        loaded = load_symbol_file(config.cad_universe, "CAD", "Toronto large cap", 1.0)
+        usd_held = config.usd_cash > 0 or config.cash_balances.get("USD", 0) > 0
+        if usd_held:
+            loaded = list(loaded) + load_symbol_file(
+                config.usd_universe, "USD", "US large cap", 1.0
+            )
+    for spec in loaded:
         if spec.symbol not in seen:
             specs.append(spec)
             seen.add(spec.symbol)
-    if config.usd_cash > 0:
-        for spec in load_symbol_file(config.usd_universe, "USD"):
-            if spec.symbol not in seen:
-                specs.append(spec)
-                seen.add(spec.symbol)
     for pin in config.watchlist:
         if pin.symbol not in seen:
             specs.append(pin)
@@ -88,11 +139,11 @@ def candidate_specs(config: DeskConfig) -> list[SymbolSpec]:
     return specs
 
 
-def average_dollar_volume(bars: list[Bar], window: int) -> float | None:
+def average_dollar_volume(bars: list[Bar], window: int, price_scale: float = 1.0) -> float | None:
     if window <= 0 or len(bars) < window:
         return None
     sample = bars[-window:]
-    return sum(bar.close * bar.volume for bar in sample) / window
+    return sum(bar.close * price_scale * bar.volume for bar in sample) / window
 
 
 def atr_percent(bars: list[Bar], window: int) -> float | None:
@@ -129,21 +180,27 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             spec.currency,
             "short_history",
             f"Needs {needed} daily bars and has {len(bars)}.",
+            source=spec.source,
         )
 
     close = bars[-1].close
-    if close < config.min_price:
+    rate = config.fx_rates.get(spec.currency.upper(), 1.0)
+    price_account = close * spec.price_scale * rate
+    if price_account < config.min_price:
         return SearchRow(
             spec.symbol,
             spec.name,
             spec.currency,
             "price",
-            f"Close {close:.2f} is below the {config.min_price:.2f} minimum. A 1 percent stop would sit inside a wide spread.",
+            (
+                f"Price {price_account:.2f} {config.currency} is below the {config.min_price:.2f} minimum. "
+                "A 1 percent stop would sit inside a wide spread."
+            ),
             close=close,
+            source=spec.source,
         )
 
-    dollar_volume = average_dollar_volume(bars, config.dollar_volume_window)
-    rate = config.fx_rates.get(spec.currency.upper(), 1.0)
+    dollar_volume = average_dollar_volume(bars, config.dollar_volume_window, spec.price_scale)
     dollar_volume_account = 0.0 if dollar_volume is None else dollar_volume * rate
     notional = config.equity * config.risk_fraction / 0.01
     participation_floor = notional / config.max_participation
@@ -162,6 +219,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             ),
             close=close,
             dollar_volume=dollar_volume_account,
+            source=spec.source,
         )
 
     atr = atr_percent(bars, config.atr_window)
@@ -174,6 +232,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             "Not enough bars to measure the average true range.",
             close=close,
             dollar_volume=dollar_volume_account,
+            source=spec.source,
         )
     if atr < config.min_atr_pct:
         return SearchRow(
@@ -188,6 +247,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             close=close,
             atr_pct=atr,
             dollar_volume=dollar_volume_account,
+            source=spec.source,
         )
     if atr > config.max_atr_pct:
         return SearchRow(
@@ -202,6 +262,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             close=close,
             atr_pct=atr,
             dollar_volume=dollar_volume_account,
+            source=spec.source,
         )
 
     closes = [bar.close for bar in bars]
@@ -216,6 +277,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
             close=close,
             atr_pct=atr,
             dollar_volume=dollar_volume_account,
+            source=spec.source,
         )
     return SearchRow(
         spec.symbol,
@@ -230,6 +292,7 @@ def classify(spec: SymbolSpec, bars: list[Bar], config: DeskConfig) -> SearchRow
         close=close,
         atr_pct=atr,
         dollar_volume=dollar_volume_account,
+        source=spec.source,
     )
 
 
@@ -237,7 +300,15 @@ def search_market(config: DeskConfig, market: MarketData, asof: date) -> SearchR
     specs = candidate_specs(config)
     if not config.search_enabled:
         return SearchResult(rows=[], tradable=specs, summary="")
+    return search_specs(config, market, asof, specs)
 
+
+def search_specs(
+    config: DeskConfig,
+    market: MarketData,
+    asof: date,
+    specs: list[SymbolSpec],
+) -> SearchResult:
     rows: list[SearchRow] = []
     tradable: list[SymbolSpec] = []
     for spec in specs:
@@ -249,6 +320,7 @@ def search_market(config: DeskConfig, market: MarketData, asof: date) -> SearchR
                     spec.currency,
                     "excluded",
                     "Warrants, preferreds, rights, and debentures are outside this strategy.",
+                    source=spec.source,
                 )
             )
             continue
@@ -256,7 +328,14 @@ def search_market(config: DeskConfig, market: MarketData, asof: date) -> SearchR
             bars = market.bars(spec.symbol, asof)
         except Exception as exc:
             rows.append(
-                SearchRow(spec.symbol, spec.name, spec.currency, "data_error", str(exc))
+                SearchRow(
+                    spec.symbol,
+                    spec.name,
+                    spec.currency,
+                    "data_error",
+                    str(exc),
+                    source=spec.source,
+                )
             )
             continue
         if not bars:
@@ -267,6 +346,7 @@ def search_market(config: DeskConfig, market: MarketData, asof: date) -> SearchR
                     spec.currency,
                     "no_bars",
                     "No daily bars on or before the session.",
+                    source=spec.source,
                 )
             )
             continue

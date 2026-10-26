@@ -1,0 +1,16 @@
+# Tokyo large caps.
+7203.T Toyota
+6758.T Sony
+9984.T SoftBank
+8306.T Mitsubishi UFJ
+6861.T Keyence
+4063.T Shin-Etsu
+9432.T NTT
+8035.T Tokyo Electron
+4568.T Daiichi Sankyo
+6098.T Recruit
+4519.T Chugai
+6367.T Daikin
+6902.T Denso
+7741.T Hoya
+6501.T Hitachi

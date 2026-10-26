@@ -10,8 +10,8 @@ The search is built for this strategy, not for a generic momentum screen. A 1 pe
 
 `desk run daily` searches, then tests the setup. `desk run universe` writes the search only.
 
-1. Universe. CAD names come from `universes/tsx60.txt`, the large-cap Toronto list, so the account does not convert currency on every trade. USD names in `universes/us_large.txt` are added only when `search.usd_cash` is above zero. Optional `watchlist` pins are included too. Warrants, preferreds, rights, and debentures are dropped.
-2. Price. Close at least 10, so a 1 percent stop is not inside a penny-stock spread.
+1. Universe. `search.scope: global` reads every file in `universes/`: Toronto, the United States, London, Europe, Switzerland, Tokyo, Australia, and Hong Kong. London Yahoo quotes are pence, so those prices are scaled by 0.01 before the cash and cost checks. A name outside the account currency is marked for conversion unless `search.cash` already holds that currency. `search.scope: listed` is the older split: Toronto always, and `universes/us_large.txt` only when `search.usd_cash` is above zero. Optional `watchlist` pins are included too. Warrants, preferreds, rights, and debentures are dropped.
+2. Price. The close, in the account currency, is at least 10, so a 1 percent stop is not inside a penny-stock spread. Planning exchange rates in `fx_rates` do that conversion. They are book rates, not a live quote.
 3. Dollar volume. At least 5,000,000 a day, and large enough that a position sized from a 1 percent stop is at most 1 percent of a typical day. A larger account therefore demands more liquid names.
 4. Range. 14-day average true range between 0.8 and 4 percent of price. Quieter names do not pay a 2 percent target on this holding period. Wider names push the stop past the 1.5 percent band.
 5. Trend. Close above the 50-day average, and that average higher than it was ten sessions ago. Names that fail here stay in the universe report and are not setup candidates.
@@ -60,6 +60,17 @@ desk --config config.yaml run harvest
 ```
 
 Prices for a live run need the optional Yahoo extra: `pip install -e '.[yahoo]'`.
+
+## Interactive desk
+
+`desk serve` opens a page on this machine only. Type the equity, deployable cash, position cap, exit plan, fees, cash by currency, and planning exchange rates. Search markets, then read each order's source market, share count, stop, target, conversion flag, and the exit rule. Changing the money and choosing Update size and exits resizes that same set of prices. It does not download them again. Risk stays at 0.5 percent.
+
+```bash
+cd desk
+desk --config config.yaml serve --demo --port 8765
+```
+
+`--demo` fills one fitted pullback in each market so the page works without a network. Leave the sample-price box unchecked, then search, to download the global sleeves from Yahoo. The page still does not place an order.
 
 ## Journal
 

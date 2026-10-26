@@ -112,7 +112,7 @@ def run_daily(config: DeskConfig, market: MarketData, journal: Journal, asof: da
             symbols=found.tradable,
         )
         skips.extend(setup_skips)
-        currencies = {spec.symbol: spec.currency for spec in found.tradable}
+        currencies = {spec.symbol: spec for spec in found.tradable}
         sized, size_skips = select_orders(config, signals, currencies, open_trades)
         orders = sized
         skips.extend(size_skips)

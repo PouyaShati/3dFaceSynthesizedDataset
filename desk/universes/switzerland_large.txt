@@ -1,0 +1,11 @@
+# Swiss large caps.
+NESN.SW Nestle
+ROG.SW Roche
+NOVN.SW Novartis
+CFR.SW Richemont
+ZURN.SW Zurich Insurance
+ABBN.SW ABB
+UBSG.SW UBS
+SIKA.SW Sika
+LONN.SW Lonza
+GIVN.SW Givaudan

@@ -43,6 +43,8 @@ class SymbolSpec:
     symbol: str
     currency: str
     name: str = ""
+    source: str = ""
+    price_scale: float = 1.0
 
 
 @dataclass

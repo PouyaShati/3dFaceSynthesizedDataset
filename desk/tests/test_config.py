@@ -23,6 +23,8 @@ def test_example_config_loads_the_published_rules():
     assert config.min_atr_pct == 0.008
     assert config.max_atr_pct == 0.04
     assert config.usd_cash == 0
+    assert config.search_scope == "global"
+    assert config.fx_rates["JPY"] == 0.009
     assert config.cad_universe.is_file()
 
 

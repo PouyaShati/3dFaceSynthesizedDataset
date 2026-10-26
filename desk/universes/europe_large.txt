@@ -1,0 +1,19 @@
+# Euro large caps listed in Germany, France, and the Netherlands.
+SAP.DE SAP
+SIE.DE Siemens
+ALV.DE Allianz
+DTE.DE Deutsche Telekom
+MUV2.DE Munich Re
+BAS.DE BASF
+AIR.PA Airbus
+MC.PA LVMH
+OR.PA L'Oreal
+TTE.PA TotalEnergies
+SAN.PA Sanofi
+RMS.PA Hermes
+SU.PA Schneider Electric
+BNP.PA BNP Paribas
+ASML.AS ASML
+INGA.AS ING
+PHIA.AS Philips
+AD.AS Ahold Delhaize

@@ -14,6 +14,20 @@ class ConfigError(ValueError):
     pass
 
 
+# Planning rates into CAD. The desk uses these to compare a 1 percent stop
+# across markets. Replace them in config when you want a different book rate.
+_PLANNING_FX = {
+    "CAD": 1.0,
+    "USD": 1.35,
+    "EUR": 1.47,
+    "GBP": 1.78,
+    "JPY": 0.009,
+    "AUD": 0.90,
+    "HKD": 0.17,
+    "CHF": 1.60,
+}
+
+
 @dataclass(frozen=True)
 class DeskConfig:
     timezone: str
@@ -58,6 +72,8 @@ class DeskConfig:
     min_atr_pct: float
     max_atr_pct: float
     dollar_volume_window: int
+    search_scope: str
+    cash_balances: dict[str, float]
     db_path: Path
     out_dir: Path
     lots_path: Path
@@ -115,7 +131,9 @@ def load_config(path: str | Path) -> DeskConfig:
 
     rates = {str(k).upper(): float(v) for k, v in (raw.get("fx_rates") or {}).items()}
     currency = str(book.get("currency", "CAD")).upper()
-    rates.setdefault(currency, 1.0)
+    for code, planning_rate in _PLANNING_FX.items():
+        rates.setdefault(code, planning_rate)
+    rates[currency] = rates.get(currency, 1.0)
 
     watchlist: list[SymbolSpec] = []
     for item in raw.get("watchlist") or []:
@@ -146,6 +164,13 @@ def load_config(path: str | Path) -> DeskConfig:
     min_price = float(search.get("min_price", 10))
     if min_price < 0:
         raise ConfigError("search.min_price cannot be negative")
+    scope = str(search.get("scope", "listed"))
+    if scope not in {"listed", "global"}:
+        raise ConfigError("search.scope must be listed or global")
+    cash_balances = {str(k).upper(): float(v) for k, v in (search.get("cash") or {}).items()}
+    usd_cash = float(search.get("usd_cash", 0))
+    if usd_cash > 0:
+        cash_balances["USD"] = max(cash_balances.get("USD", 0.0), usd_cash)
 
     return DeskConfig(
         timezone=str(raw.get("timezone", "America/Toronto")),
@@ -182,7 +207,6 @@ def load_config(path: str | Path) -> DeskConfig:
         search_enabled=bool(search.get("enabled", False)),
         cad_universe=_resolve_universe(root, str(search.get("cad_universe", "universes/tsx60.txt"))),
         usd_universe=_resolve_universe(root, str(search.get("usd_universe", "universes/us_large.txt"))),
-        usd_cash=float(search.get("usd_cash", 0)),
         min_price=min_price,
         min_avg_dollar_volume=float(search.get("min_avg_dollar_volume", 5_000_000)),
         max_participation=max_participation,
@@ -190,6 +214,9 @@ def load_config(path: str | Path) -> DeskConfig:
         min_atr_pct=min_atr_pct,
         max_atr_pct=max_atr_pct,
         dollar_volume_window=int(search.get("dollar_volume_window", 20)),
+        search_scope=scope,
+        cash_balances=cash_balances,
+        usd_cash=usd_cash,
         db_path=db_path,
         out_dir=out_dir,
         lots_path=lots_path,

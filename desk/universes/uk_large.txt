@@ -1,0 +1,21 @@
+# London large caps. Yahoo quotes these in pence, so the desk scales prices by 0.01.
+SHEL.L Shell
+AZN.L AstraZeneca
+HSBA.L HSBC
+ULVR.L Unilever
+BP.L BP
+REL.L RELX
+GSK.L GSK
+DGE.L Diageo
+RIO.L Rio Tinto
+BATS.L British American Tobacco
+LSEG.L London Stock Exchange Group
+NG.L National Grid
+AAL.L Anglo American
+GLEN.L Glencore
+VOD.L Vodafone
+BARC.L Barclays
+LLOY.L Lloyds
+PRU.L Prudential
+BA.L BAE Systems
+CPG.L Compass

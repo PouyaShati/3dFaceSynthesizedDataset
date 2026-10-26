@@ -1,0 +1,16 @@
+# Hong Kong large caps.
+0700.HK Tencent
+9988.HK Alibaba
+0005.HK HSBC
+0939.HK China Construction Bank
+1299.HK AIA
+3690.HK Meituan
+1810.HK Xiaomi
+0941.HK China Mobile
+0388.HK Hong Kong Exchanges
+2318.HK Ping An
+1398.HK ICBC
+0883.HK CNOOC
+0001.HK CK Hutchison
+0016.HK Sun Hung Kai
+1211.HK BYD

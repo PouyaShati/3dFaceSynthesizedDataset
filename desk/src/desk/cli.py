@@ -13,6 +13,7 @@ from desk.config import ConfigError, DeskConfig, load_config
 from desk.costs import needs_conversion, round_trip_cost
 from desk.journal import Journal
 from desk.plan import default_market, run_daily, run_harvest, run_universe, run_weekly
+from desk.server import serve
 from desk.universe import UniverseError, listed_symbols
 from desk.risk import position_shares
 
@@ -57,7 +58,16 @@ def _journal_add(config: DeskConfig, journal: Journal, args: argparse.Namespace)
         return 1
     reserved = sum(trade.shares * trade.entry_price for trade in open_trades)
     cash = config.deployable_cash - reserved
-    allowed = position_shares(config.equity, config.risk_fraction, entry, stop, max(cash, 0.0))
+    rate = config.fx_rates.get(spec.currency.upper(), 1.0)
+    allowed = position_shares(
+        config.equity,
+        config.risk_fraction,
+        entry,
+        stop,
+        max(cash, 0.0),
+        spec.price_scale,
+        rate,
+    )
     if allowed is None:
         print("The stop risks more than 0.5 percent of equity, or cash cannot fund a share.", file=sys.stderr)
         return 1
@@ -74,8 +84,10 @@ def _journal_add(config: DeskConfig, journal: Journal, args: argparse.Namespace)
         target = entry * 1.03 if exit_plan == "fixed3" else entry + 3 * risk
     else:
         target = float(args.target)
-    convert = needs_conversion(spec.currency, config.currency)
-    fx_cost = 0.0 if not convert else round_trip_cost(shares, entry, config, True) - 2 * config.commission_per_trade
+    convert = needs_conversion(spec.currency, config.currency, config.cash_balances)
+    fx_cost = 0.0 if not convert else round_trip_cost(
+        shares, entry, config, True, spec.price_scale, rate
+    ) - 2 * config.commission_per_trade
     commissions = 2 * config.commission_per_trade
     thesis = args.thesis or (
         f"{args.symbol} daily trend long. Entry {entry:.4f}, stop {stop:.4f}, target {target:.4f}."
@@ -178,6 +190,10 @@ def main(argv: list[str] | None = None) -> int:
     half.add_argument("--id", required=True)
     half.add_argument("--price")
 
+    interactive = sub.add_parser("serve", help="Open the local interactive desk")
+    interactive.add_argument("--port", type=int, default=8765)
+    interactive.add_argument("--demo", action="store_true", help="Start ready to use offline sample prices")
+
     args = parser.parse_args(argv)
     try:
         config = load_config(args.config)
@@ -229,6 +245,9 @@ def main(argv: list[str] | None = None) -> int:
             return _journal_close(config, journal_db, args)
         if args.command == "journal" and args.action == "half":
             return _journal_half(journal_db, args)
+        if args.command == "serve":
+            serve(config, journal_db, args.port, args.demo)
+            return 0
     except MarketClosed as exc:
         print(str(exc), file=sys.stderr)
         return 2
